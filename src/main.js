@@ -406,4 +406,4 @@ async function startRecording() {
   let stream
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }) }
   catch { return toast('Allow microphone access to record.') }
-  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((t) => MediaRecorder.isTypeSupported(t))
