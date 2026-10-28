@@ -1,6 +1,6 @@
 import { supabase, getProfile, uploadAvatar, updateProfile, deleteMessage } from './supabase.js';
-import { initCalls } from './calls.js';
-import { setupEmojiPicker } from './emoji.js';
+import './calls.js'; // Restored original architecture (side-effect import)
+import './emoji.js'; // Restored original architecture (side-effect import)
 
 let currentUser = null;
 let currentProfile = null;
@@ -14,10 +14,7 @@ const THEMES = [
   { id: 'amber',   name: 'Amber Orange',   desc: 'Vibrant Dark Mobile UI',   preview: '#F59E0B' }
 ];
 
-/**
- * Apply selected theme dynamically across the app
- */
-export function applyTheme(themeId) {
+function applyTheme(themeId) {
   const validTheme = THEMES.some(t => t.id === themeId) ? themeId : 'emerald';
   document.documentElement.setAttribute('data-theme', validTheme);
   localStorage.setItem('chatcraft_theme', validTheme);
@@ -26,7 +23,6 @@ export function applyTheme(themeId) {
 // ==========================================================================
 // PROFILE & THEME MODAL UI
 // ==========================================================================
-
 function renderProfileModal() {
   const existing = document.getElementById('profile-modal');
   if (existing) existing.remove();
@@ -40,12 +36,10 @@ function renderProfileModal() {
         
         <h2 class="text-2xl font-bold mb-4">Edit Profile & Appearance</h2>
 
-        <!-- Avatar Upload Section -->
         <div class="flex flex-col items-center mb-6">
           <div class="relative group w-24 h-24 mb-3">
             <img id="avatar-preview" 
                  src="${currentProfile?.avatar_url || 'https://via.placeholder.com/96?text=User'}" 
-                 alt="Avatar" 
                  class="w-24 h-24 rounded-full object-cover border-2 border-emerald-500 shadow" />
             <label for="avatar-file-input" class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 cursor-pointer transition">
               <span class="text-xs font-semibold">Change</span>
@@ -55,7 +49,6 @@ function renderProfileModal() {
           <span class="text-xs text-gray-400">Click photo to upload new picture</span>
         </div>
 
-        <!-- User Information Fields -->
         <div class="space-y-4">
           <div>
             <label class="block text-xs font-semibold uppercase tracking-wider mb-1">Display Name</label>
@@ -69,7 +62,6 @@ function renderProfileModal() {
                       class="w-full px-3 py-2 rounded-lg border theme-card focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">${currentProfile?.bio || ''}</textarea>
           </div>
 
-          <!-- Theme Palette Selector -->
           <div>
             <label class="block text-xs font-semibold uppercase tracking-wider mb-2">Color Theme</label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="theme-selector-list">
@@ -101,20 +93,14 @@ function renderProfileModal() {
 
 function attachProfileModalEvents() {
   const modal = document.getElementById('profile-modal');
-  const closeBtn = document.getElementById('close-profile-btn');
-  const cancelBtn = document.getElementById('cancel-profile-btn');
-  const saveBtn = document.getElementById('save-profile-btn');
-  const avatarInput = document.getElementById('avatar-file-input');
-  const avatarPreview = document.getElementById('avatar-preview');
-
   let selectedFile = null;
   let selectedTheme = currentProfile?.theme || localStorage.getItem('chatcraft_theme') || 'emerald';
 
-  avatarInput?.addEventListener('change', (e) => {
+  document.getElementById('avatar-file-input')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
       selectedFile = file;
-      avatarPreview.src = URL.createObjectURL(file);
+      document.getElementById('avatar-preview').src = URL.createObjectURL(file);
     }
   });
 
@@ -128,26 +114,23 @@ function attachProfileModalEvents() {
   });
 
   const closeModal = () => modal?.classList.add('hidden');
+  document.getElementById('close-profile-btn')?.addEventListener('click', closeModal);
+  document.getElementById('cancel-profile-btn')?.addEventListener('click', closeModal);
 
-  closeBtn?.addEventListener('click', closeModal);
-  cancelBtn?.addEventListener('click', closeModal);
-
-  saveBtn?.addEventListener('click', async () => {
-    if (!currentUser) {
-      alert('You must be logged in to save profile changes.');
-      return;
-    }
+  document.getElementById('save-profile-btn')?.addEventListener('click', async (e) => {
+    const btn = e.target;
+    if (!currentUser) return alert('You must be logged in.');
 
     try {
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving...';
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
 
       let avatarUrl = currentProfile?.avatar_url;
       if (selectedFile) {
         avatarUrl = await uploadAvatar(selectedFile, currentUser.id);
       }
 
-      const updated = await updateProfile({
+      currentProfile = await updateProfile({
         userId: currentUser.id,
         username: document.getElementById('profile-username').value.trim(),
         bio: document.getElementById('profile-bio').value.trim(),
@@ -155,24 +138,22 @@ function attachProfileModalEvents() {
         theme: selectedTheme
       });
 
-      currentProfile = updated;
       applyTheme(selectedTheme);
       closeModal();
-      location.reload();
+      location.reload(); 
     } catch (err) {
-      alert('Failed to update profile: ' + err.message);
+      alert('Update failed: ' + err.message);
     } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save Changes';
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
     }
   });
 }
 
 // ==========================================================================
-// CHAT MESSAGES & DELETION LOGIC
+// CHAT & DELETE LOGIC
 // ==========================================================================
-
-export function createMessageElement(msg) {
+function createMessageElement(msg) {
   const isOwner = currentUser && msg.user_id === currentUser.id;
   const container = document.createElement('div');
   container.className = `flex gap-3 mb-4 message-container ${isOwner ? 'flex-row-reverse' : 'flex-row'}`;
@@ -202,14 +183,13 @@ export function createMessageElement(msg) {
   `;
 
   if (isOwner) {
-    const delBtn = container.querySelector('[data-delete-id]');
-    delBtn?.addEventListener('click', async () => {
-      if (confirm('Are you sure you want to delete this message?')) {
+    container.querySelector('[data-delete-id]')?.addEventListener('click', async () => {
+      if (confirm('Delete this message?')) {
         try {
           await deleteMessage(msg.id);
           container.remove();
         } catch (e) {
-          alert('Could not delete message: ' + e.message);
+          alert('Could not delete: ' + e.message);
         }
       }
     });
@@ -218,107 +198,70 @@ export function createMessageElement(msg) {
   return container;
 }
 
-// Fetch historical messages from Supabase
 async function loadMessages() {
   const chatWindow = document.getElementById('chat-window');
   if (!chatWindow) return;
 
-  const { data: messages, error } = await supabase
-    .from('messages')
-    .select('*')
-    .order('created_at', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching messages:', error);
-    return;
-  }
+  const { data: messages, error } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
+  if (error) return console.error('Error fetching messages:', error);
 
   chatWindow.innerHTML = '';
-  messages.forEach(msg => {
-    chatWindow.appendChild(createMessageElement(msg));
-  });
+  messages.forEach(msg => chatWindow.appendChild(createMessageElement(msg)));
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-// Insert new message to Supabase
 async function handleSendMessage(content) {
   if (!content.trim() || !currentUser) return;
-
-  const { error } = await supabase.from('messages').insert({
+  await supabase.from('messages').insert({
     user_id: currentUser.id,
     username: currentProfile?.username || currentUser.email?.split('@')[0] || 'User',
     avatar_url: currentProfile?.avatar_url || '',
     content: content.trim()
   });
-
-  if (error) {
-    console.error('Error sending message:', error);
-    alert('Failed to send message.');
-  }
 }
 
-// Listen for incoming messages and deleted messages in real-time
 function subscribeRealtime() {
   const chatWindow = document.getElementById('chat-window');
-
   supabase
     .channel('public:messages')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-      const msg = payload.new;
       if (chatWindow) {
-        chatWindow.appendChild(createMessageElement(msg));
+        chatWindow.appendChild(createMessageElement(payload.new));
         chatWindow.scrollTop = chatWindow.scrollHeight;
       }
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, payload => {
-      const deletedId = payload.old.id;
-      const el = document.querySelector(`[data-msg-id="${deletedId}"]`);
-      if (el) el.remove();
+      document.querySelector(`[data-msg-id="${payload.old.id}"]`)?.remove();
     })
     .subscribe();
 }
 
-// ==========================================================================
-// APPLICATION INITIALIZATION
-// ==========================================================================
-
 async function init() {
-  const savedTheme = localStorage.getItem('chatcraft_theme') || 'emerald';
-  applyTheme(savedTheme);
+  applyTheme(localStorage.getItem('chatcraft_theme') || 'emerald');
 
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
     currentUser = user;
     currentProfile = await getProfile(user.id);
-    if (currentProfile?.theme) {
-      applyTheme(currentProfile.theme);
-    }
+    if (currentProfile?.theme) applyTheme(currentProfile.theme);
   }
 
   renderProfileModal();
   await loadMessages();
   subscribeRealtime();
 
-  // Attach UI click events
   document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
     document.getElementById('profile-modal')?.classList.remove('hidden');
   });
 
-  const chatForm = document.getElementById('chat-form');
   const messageInput = document.getElementById('message-input');
-
-  chatForm?.addEventListener('submit', (e) => {
+  document.getElementById('chat-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    if (messageInput && messageInput.value) {
+    if (messageInput?.value) {
       handleSendMessage(messageInput.value);
       messageInput.value = '';
     }
   });
-
-  // Optional sub-module initializations
-  if (typeof setupEmojiPicker === 'function') setupEmojiPicker();
-  if (typeof initCalls === 'function') initCalls();
 }
 
 document.addEventListener('DOMContentLoaded', init);
-    
