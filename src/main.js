@@ -1,9 +1,11 @@
 import { supabase, getProfile, uploadAvatar, updateProfile, deleteMessage } from './supabase.js';
+import { initCalls } from './calls.js';
+import { setupEmojiPicker } from './emoji.js';
 
 let currentUser = null;
 let currentProfile = null;
 
-// Available Themes List
+// Available Color Themes
 const THEMES = [
   { id: 'emerald', name: 'Emerald Green', desc: 'Modern Social Messenger', preview: '#059669' },
   { id: 'violet',  name: 'Violet Purple',  desc: 'Team Workspace UI',        preview: '#7C3AED' },
@@ -13,20 +15,23 @@ const THEMES = [
 ];
 
 /**
- * Apply selected theme to application root
+ * Apply selected theme dynamically across the app
  */
-function applyTheme(themeId) {
+export function applyTheme(themeId) {
   const validTheme = THEMES.some(t => t.id === themeId) ? themeId : 'emerald';
   document.documentElement.setAttribute('data-theme', validTheme);
   localStorage.setItem('chatcraft_theme', validTheme);
 }
 
-/**
- * Render/Inject Edit Profile & Theme Selector Modal into DOM
- */
+// ==========================================================================
+// PROFILE & THEME MODAL UI
+// ==========================================================================
+
 function renderProfileModal() {
   const existing = document.getElementById('profile-modal');
   if (existing) existing.remove();
+
+  const activeTheme = currentProfile?.theme || localStorage.getItem('chatcraft_theme') || 'emerald';
 
   const modalHtml = `
     <div id="profile-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4">
@@ -50,11 +55,11 @@ function renderProfileModal() {
           <span class="text-xs text-gray-400">Click photo to upload new picture</span>
         </div>
 
-        <!-- Form Controls -->
+        <!-- User Information Fields -->
         <div class="space-y-4">
           <div>
             <label class="block text-xs font-semibold uppercase tracking-wider mb-1">Display Name</label>
-            <input type="text" id="profile-username" value="${currentProfile?.username || ''}" 
+            <input type="text" id="profile-username" value="${currentProfile?.username || currentUser?.email?.split('@')[0] || ''}" 
                    class="w-full px-3 py-2 rounded-lg border theme-card focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
           </div>
 
@@ -64,13 +69,13 @@ function renderProfileModal() {
                       class="w-full px-3 py-2 rounded-lg border theme-card focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">${currentProfile?.bio || ''}</textarea>
           </div>
 
-          <!-- Theme Selection Section -->
+          <!-- Theme Palette Selector -->
           <div>
             <label class="block text-xs font-semibold uppercase tracking-wider mb-2">Color Theme</label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="theme-selector-list">
               ${THEMES.map(theme => `
                 <button type="button" data-theme-id="${theme.id}" 
-                        class="theme-option-btn border p-2.5 rounded-xl flex items-center gap-3 text-left hover:border-gray-400 transition ${currentProfile?.theme === theme.id ? 'ring-2 ring-offset-1 ring-emerald-500' : ''}">
+                        class="theme-option-btn border p-2.5 rounded-xl flex items-center gap-3 text-left hover:border-gray-400 transition ${activeTheme === theme.id ? 'ring-2 ring-offset-1 ring-emerald-500' : ''}">
                   <span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${theme.preview}"></span>
                   <div class="overflow-hidden">
                     <p class="text-xs font-bold truncate">${theme.name}</p>
@@ -94,9 +99,6 @@ function renderProfileModal() {
   attachProfileModalEvents();
 }
 
-/**
- * Handle listeners inside Profile Modal
- */
 function attachProfileModalEvents() {
   const modal = document.getElementById('profile-modal');
   const closeBtn = document.getElementById('close-profile-btn');
@@ -108,7 +110,6 @@ function attachProfileModalEvents() {
   let selectedFile = null;
   let selectedTheme = currentProfile?.theme || localStorage.getItem('chatcraft_theme') || 'emerald';
 
-  // Preview local avatar image before uploading
   avatarInput?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -117,7 +118,6 @@ function attachProfileModalEvents() {
     }
   });
 
-  // Theme selection inside modal
   document.querySelectorAll('.theme-option-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       selectedTheme = btn.dataset.themeId;
@@ -127,12 +127,17 @@ function attachProfileModalEvents() {
     });
   });
 
-  const closeModal = () => modal.classList.add('hidden');
+  const closeModal = () => modal?.classList.add('hidden');
 
   closeBtn?.addEventListener('click', closeModal);
   cancelBtn?.addEventListener('click', closeModal);
 
   saveBtn?.addEventListener('click', async () => {
+    if (!currentUser) {
+      alert('You must be logged in to save profile changes.');
+      return;
+    }
+
     try {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving...';
@@ -153,7 +158,7 @@ function attachProfileModalEvents() {
       currentProfile = updated;
       applyTheme(selectedTheme);
       closeModal();
-      location.reload(); // Refresh to update chat avatars and user state
+      location.reload();
     } catch (err) {
       alert('Failed to update profile: ' + err.message);
     } finally {
@@ -163,9 +168,10 @@ function attachProfileModalEvents() {
   });
 }
 
-/**
- * Render single message block with delete button for owner
- */
+// ==========================================================================
+// CHAT MESSAGES & DELETION LOGIC
+// ==========================================================================
+
 export function createMessageElement(msg) {
   const isOwner = currentUser && msg.user_id === currentUser.id;
   const container = document.createElement('div');
@@ -175,7 +181,7 @@ export function createMessageElement(msg) {
   const avatar = msg.avatar_url || 'https://via.placeholder.com/36?text=U';
 
   container.innerHTML = `
-    <img src="${avatar}" class="w-9 h-9 rounded-full object-cover flex-shrink-0" title="${msg.username}" />
+    <img src="${avatar}" class="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-200" title="${msg.username}" />
     <div class="flex flex-col max-w-[70%] ${isOwner ? 'items-end' : 'items-start'}">
       <span class="text-[11px] text-gray-400 mb-1 px-1">${msg.username}</span>
       <div class="relative group">
@@ -195,11 +201,10 @@ export function createMessageElement(msg) {
     </div>
   `;
 
-  // Attach delete action listener
   if (isOwner) {
     const delBtn = container.querySelector('[data-delete-id]');
     delBtn?.addEventListener('click', async () => {
-      if (confirm('Delete this message?')) {
+      if (confirm('Are you sure you want to delete this message?')) {
         try {
           await deleteMessage(msg.id);
           container.remove();
@@ -213,11 +218,71 @@ export function createMessageElement(msg) {
   return container;
 }
 
-/**
- * Initialize app state, active theme, realtime delete listener, and UI bindings
- */
+// Fetch historical messages from Supabase
+async function loadMessages() {
+  const chatWindow = document.getElementById('chat-window');
+  if (!chatWindow) return;
+
+  const { data: messages, error } = await supabase
+    .from('messages')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching messages:', error);
+    return;
+  }
+
+  chatWindow.innerHTML = '';
+  messages.forEach(msg => {
+    chatWindow.appendChild(createMessageElement(msg));
+  });
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+// Insert new message to Supabase
+async function handleSendMessage(content) {
+  if (!content.trim() || !currentUser) return;
+
+  const { error } = await supabase.from('messages').insert({
+    user_id: currentUser.id,
+    username: currentProfile?.username || currentUser.email?.split('@')[0] || 'User',
+    avatar_url: currentProfile?.avatar_url || '',
+    content: content.trim()
+  });
+
+  if (error) {
+    console.error('Error sending message:', error);
+    alert('Failed to send message.');
+  }
+}
+
+// Listen for incoming messages and deleted messages in real-time
+function subscribeRealtime() {
+  const chatWindow = document.getElementById('chat-window');
+
+  supabase
+    .channel('public:messages')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+      const msg = payload.new;
+      if (chatWindow) {
+        chatWindow.appendChild(createMessageElement(msg));
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+      }
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, payload => {
+      const deletedId = payload.old.id;
+      const el = document.querySelector(`[data-msg-id="${deletedId}"]`);
+      if (el) el.remove();
+    })
+    .subscribe();
+}
+
+// ==========================================================================
+// APPLICATION INITIALIZATION
+// ==========================================================================
+
 async function init() {
-  // Restore local cached theme standard
   const savedTheme = localStorage.getItem('chatcraft_theme') || 'emerald';
   applyTheme(savedTheme);
 
@@ -231,22 +296,29 @@ async function init() {
   }
 
   renderProfileModal();
+  await loadMessages();
+  subscribeRealtime();
 
-  // Profile Edit Button Trigger in UI Header
+  // Attach UI click events
   document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
     document.getElementById('profile-modal')?.classList.remove('hidden');
   });
 
-  // Realtime deletion handler
-  supabase
-    .channel('public:messages')
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, payload => {
-      const deletedId = payload.old.id;
-      const el = document.querySelector(`[data-msg-id="${deletedId}"]`);
-      if (el) el.remove();
-    })
-    .subscribe();
+  const chatForm = document.getElementById('chat-form');
+  const messageInput = document.getElementById('message-input');
+
+  chatForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (messageInput && messageInput.value) {
+      handleSendMessage(messageInput.value);
+      messageInput.value = '';
+    }
+  });
+
+  // Optional sub-module initializations
+  if (typeof setupEmojiPicker === 'function') setupEmojiPicker();
+  if (typeof initCalls === 'function') initCalls();
 }
 
 document.addEventListener('DOMContentLoaded', init);
-        
+    
