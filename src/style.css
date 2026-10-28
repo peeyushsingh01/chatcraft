@@ -2,8 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Defaults = Tailwind slate */
+/* Default slate palette */
 :root {
+  color-scheme: dark;
   --s50:248 250 252; --s100:241 245 249; --s200:226 232 240; --s300:203 213 225;
   --s400:148 163 184; --s500:100 116 139; --s600:71 85 105; --s700:51 65 85;
   --s800:30 41 59; --s900:15 23 42; --s950:2 6 23;
@@ -11,14 +12,15 @@
   --bubble-in:rgb(30 41 59); --bubble-in-text:rgb(241 245 249);
 }
 
-/* 3. Indigo: AI canvas (default) */
+/* Indigo: AI canvas */
 :root, :root[data-accent="indigo"] {
+  color-scheme: dark;
   --a300:165 180 252; --a400:129 140 248; --a500:99 102 241; --a600:79 70 229; --a700:67 56 202;
   --s950:12 15 23; --s900:17 21 32; --s800:30 36 51; --s700:45 53 72;
-  --bubble-in:rgb(51 65 85 / .55);
+  --bubble-in:rgb(51 65 85 / .55); --bubble-in-text:rgb(241 245 249);
 }
 
-/* 1. Emerald: light messenger */
+/* Emerald: light messenger */
 :root[data-accent="emerald"] {
   color-scheme: light;
   --a300:4 120 87; --a400:52 211 153; --a500:16 185 129; --a600:5 150 105; --a700:4 120 87;
@@ -28,14 +30,15 @@
   --bubble-in:rgb(243 244 246); --bubble-in-text:rgb(17 24 39);
 }
 
-/* 2. Violet: midnight workspace */
+/* Violet: midnight workspace */
 :root[data-accent="violet"] {
+  color-scheme: dark;
   --a300:196 181 253; --a400:167 139 250; --a500:139 92 246; --a600:124 58 237; --a700:109 40 217;
   --s950:15 15 26; --s900:22 22 37; --s800:32 32 52; --s700:49 46 75;
   --bubble-in:rgb(32 32 52); --bubble-in-text:rgb(226 232 240);
 }
 
-/* 4. Rose: warm cream support widget */
+/* Rose: warm cream support widget */
 :root[data-accent="rose"] {
   color-scheme: light;
   --a300:190 18 60; --a400:251 113 133; --a500:244 63 94; --a600:225 29 72; --a700:190 18 60;
@@ -45,13 +48,15 @@
   --bubble-in:rgb(255 255 255); --bubble-in-text:rgb(61 29 36);
 }
 
-/* 5. Amber: OLED black */
+/* Amber: OLED black */
 :root[data-accent="amber"] {
+  color-scheme: dark;
   --a300:252 211 77; --a400:251 191 36; --a500:251 176 36; --a600:245 158 11; --a700:217 119 6;
   --s950:0 0 0; --s900:10 10 10; --s800:26 26 26; --s700:46 46 46;
   --on-accent:20 20 20;
   --bubble-in:rgb(28 28 28); --bubble-in-text:rgb(245 245 245);
 }
+:root:not([data-accent="amber"]) { --on-accent:255 255 255; }
 
 @layer base {
   html, body { height: 100%; }
@@ -68,28 +73,21 @@
   .chat-row.active { @apply bg-accent-600/10 border-accent-500/30; }
   .rx { @apply text-xs px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-200 hover:border-accent-500; }
   .rx.mine { @apply border-accent-500 bg-accent-600/20; }
+  .call-btn { @apply w-14 h-14 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 text-white transition-colors; }
   .bubble-out { background: rgb(var(--a600)); color: rgb(var(--on-accent)); }
   .bubble-in { background: var(--bubble-in); color: var(--bubble-in-text); border: 1px solid rgb(var(--s700) / .6); }
-  .call-btn { @apply w-14 h-14 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 text-white transition-colors; }
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.3); border-radius: 9999px; }
-
 @keyframes typingBounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
 .typing-dot { animation: typingBounce 1.4s infinite ease-in-out both; }
 .typing-dot:nth-child(1) { animation-delay: -0.32s; }
 .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-
 @keyframes jumboPop { 0% { transform: scale(.7); opacity: 0; } 50% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
 .animate-jumbo { animation: jumboPop .35s cubic-bezier(.175,.885,.32,1.275) both; }
-
-/* Real responsive behaviour: on phones show either the list or the chat. */
 @media (max-width: 767px) {
   body[data-view="chat"] #sidebar { display: none; }
   body:not([data-view="chat"]) #chat { display: none; }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .typing-dot, .animate-jumbo { animation: none; }
-    }
+@media (prefers-reduced-motion: reduce) { .typing-dot, .animate-jumbo { animation: none; } }
