@@ -1,67 +1,26 @@
-/**
- * Interactive Emoji Picker Module
- * Exports setupEmojiPicker and initEmojiPicker to satisfy build requirements
- */
-export function setupEmojiPicker(onEmojiSelect) {
-  const emojiBtn = document.getElementById('emoji-btn');
-  const wrapper = document.getElementById('emoji-picker-wrapper');
-  const messageInput = document.getElementById('message-input');
-
-  if (!emojiBtn || !wrapper) return;
-
-  const EMOJI_LIST = [
-    '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
-    '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
-    '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩',
-    '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣',
-    '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬',
-    '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗',
-    '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯',
-    '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '😵', '🤠', '😎',
-    '👏', '👍', '👎', '👊', '✊', '🤛', '🤜', '🤞', '✌️', '🤟',
-    '🤘', '👌', '🤏', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚',
-    '🖐', '🖖', '👋', '🤙', '💪', '✍️', '🙏', '🔥', '❤️', '💖',
-    '✨', '🎉', '🚀', '💯', '⭐', '💩', '🎈', '🎯', '⚡', '☕'
-  ];
-
-  wrapper.innerHTML = `
-    <div class="p-3 theme-card bg-gray-900 border border-gray-700 rounded-2xl grid grid-cols-8 gap-1.5 shadow-2xl max-h-48 overflow-y-auto w-64 sm:w-80">
-      ${EMOJI_LIST.map(emoji => `
-        <button type="button" class="emoji-item p-1.5 text-lg hover:bg-gray-800 rounded-lg transition transform hover:scale-125 flex items-center justify-center">
-          ${emoji}
-        </button>
-      `).join('')}
-    </div>
-  `;
-
-  emojiBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    wrapper.classList.toggle('hidden');
-  });
-
-  wrapper.addEventListener('click', (e) => {
-    const target = e.target.closest('.emoji-item');
-    if (target) {
-      const emoji = target.textContent.trim();
-      if (messageInput) {
-        messageInput.value += emoji;
-        messageInput.focus();
-      }
-      if (typeof onEmojiSelect === 'function') {
-        onEmojiSelect(emoji);
-      }
-      wrapper.classList.add('hidden');
-    }
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!emojiBtn.contains(e.target) && !wrapper.contains(e.target)) {
-      wrapper.classList.add('hidden');
-    }
-  });
+// [emoji, search keywords]
+export const EMOJI = {
+  smileys: { label: '😀', items: [
+    ['😀','grin happy smile'],['😃','smile happy'],['😄','smile laugh'],['😁','grin beam'],['😆','laugh squint'],['😅','sweat nervous'],
+    ['😂','laugh joy tears lol'],['🤣','rofl laugh floor'],['😊','blush smile'],['😇','angel halo'],['🙂','slight smile'],['😉','wink'],
+    ['😍','love heart eyes'],['🥰','love hearts adore'],['😘','kiss'],['😋','yum tasty'],['😜','tongue wink silly'],['🤪','crazy zany'],
+    ['🤓','nerd glasses'],['😎','cool sunglasses'],['🥳','party celebrate'],['😒','unamused'],['😞','sad disappointed'],['😢','cry sad tear'],
+    ['😭','sob cry loud'],['😤','huff angry'],['😠','angry mad'],['🤯','mind blown'],['😳','flushed embarrassed'],['😱','scream fear shock'],
+    ['🥱','yawn tired'],['😴','sleep zzz'],['🤔','think hmm'],['🙄','eye roll'],['😬','grimace awkward'],['🥺','pleading puppy'],
+  ]},
+  hands: { label: '👍', items: [
+    ['👍','thumbs up yes ok good'],['👎','thumbs down no bad'],['👏','clap applause'],['🙌','raised hands praise'],['🙏','pray thanks please'],
+    ['🤝','handshake deal'],['💪','muscle strong flex'],['✌️','peace victory'],['🤞','fingers crossed luck'],['🤟','love you'],
+    ['👌','ok perfect'],['👋','wave hello bye'],['🤙','call me shaka'],['☝️','point up'],['👇','point down'],['👉','point right'],['👈','point left'],['✊','fist'],
+  ]},
+  hearts: { label: '❤️', items: [
+    ['❤️','red heart love'],['🧡','orange heart'],['💛','yellow heart'],['💚','green heart'],['💙','blue heart'],['💜','purple heart'],
+    ['🖤','black heart'],['🤍','white heart'],['💔','broken heart'],['💕','two hearts'],['💖','sparkling heart'],['💘','heart arrow cupid'],
+  ]},
+  objects: { label: '⚡', items: [
+    ['🔥','fire hot lit'],['⚡','lightning bolt energy'],['✨','sparkles magic'],['🌟','star glow'],['🚀','rocket launch'],['💡','idea bulb'],
+    ['🎉','party popper celebrate'],['🎊','confetti'],['🎁','gift present'],['🏆','trophy win'],['🎯','target bullseye'],['💯','hundred perfect'],
+    ['📱','phone mobile'],['💻','laptop computer'],['🎧','headphones music'],['🎵','music note'],['📌','pin'],['📍','location pin'],['✅','check done'],['❌','cross no'],
+  ]},
 }
-
-export const initEmojiPicker = setupEmojiPicker;
-export default setupEmojiPicker;
-
+export const QUICK_REACTIONS = ['👍','❤️','😂','🔥','🎉','🚀','😮','🙌']
