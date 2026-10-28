@@ -173,7 +173,7 @@ function chatRow(c) {
       <div class="flex items-center justify-between gap-2"><h4 class="font-semibold text-sm truncate">${esc(title)}</h4><span class="text-xs text-slate-400 shrink-0">${c.last ? fmtStamp(c.last.created_at) : ''}</span></div>
       <p class="text-sm text-slate-400 truncate">${esc(preview(c))}</p>
     </div>
-    ${c.unread ? `<span class="px-2 py-0.5 rounded-full bg-accent-600 text-white text-xs font-bold">${c.unread}</span>` : ''}
+    ${c.unread ? `<span class="px-2 py-0.5 rounded-full bg-accent-600 text-on-accent text-xs font-bold">${c.unread}</span>` : ''}
   </button>`
 }
 
@@ -253,10 +253,10 @@ function msgHtml(m, c, fresh) {
   const who = nameOf(profileOf(m.sender_id))
   if (m.deleted_at) {
     return `<div class="msg flex flex-col ${mine ? 'items-end' : 'items-start'}" data-id="${esc(m.id)}">
-    ${c.is_group && !mine ? `<span class="text-xs font-medium text-accent-300 mb-1 px-1">${esc(who)}</span>` : ''}
-    <div class="max-w-[85%] md:max-w-[65%] rounded-2xl px-3.5 py-2.5 text-sm italic text-slate-400 bg-slate-900 border border-slate-700/60">🚫 This message was deleted</div>
-    <div class="flex items-center gap-1.5 mt-1 px-1 text-xs text-slate-400"><span>${fmtTime(m.created_at)}</span></div>
-  </div>`
+      ${c.is_group && !mine ? `<span class="text-xs font-medium text-accent-300 mb-1 px-1">${esc(who)}</span>` : ''}
+      <div class="max-w-[85%] md:max-w-[65%] rounded-2xl px-3.5 py-2.5 text-sm italic text-slate-400 bubble-in">🚫 This message was deleted</div>
+      <div class="flex items-center gap-1.5 mt-1 px-1 text-xs text-slate-400"><span>${fmtTime(m.created_at)}</span></div>
+    </div>`
   }
   const jumbo = m.kind === 'text' && isOnlyEmoji(m.body)
   let inner
@@ -265,7 +265,7 @@ function msgHtml(m, c, fresh) {
   else inner = `<p class="whitespace-pre-wrap break-words leading-relaxed">${esc(m.body)}</p>`
   const bubble = jumbo
     ? `<div class="text-5xl py-1 select-none${fresh ? ' animate-jumbo' : ''}">${esc(m.body)}</div>`
-    : `<div class="max-w-[85%] md:max-w-[65%] rounded-2xl px-3.5 py-2.5 text-sm shadow-md ${mine ? 'bg-accent-600 text-white rounded-br-md' : 'bg-slate-800 text-slate-100 border border-slate-700/60 rounded-bl-md'}">${inner}</div>`
+    : `<div class="max-w-[85%] md:max-w-[65%] rounded-2xl px-3.5 py-2.5 text-sm shadow-md ${mine ? 'bubble-out rounded-br-md' : 'bubble-in rounded-bl-md'}">${inner}</div>`
   return `<div class="msg group flex flex-col ${mine ? 'items-end' : 'items-start'}" data-id="${esc(m.id)}">
     ${c.is_group && !mine ? `<span class="text-xs font-medium text-accent-300 mb-1 px-1">${esc(who)}</span>` : ''}
     ${bubble}
@@ -273,7 +273,7 @@ function msgHtml(m, c, fresh) {
       <span>${fmtTime(m.created_at)}</span>
       ${mine ? `<span class="tick" data-ts="${esc(m.created_at)}">${tickHtml(m.created_at, c)}</span>` : ''}
       <span class="reactions flex gap-1">${reactionsHtml(m.id)}</span>
-      <button data-react="${esc(m.id)}" aria-label="Add reaction" class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 p-0.5 rounded hover:text-white">${icon('smile', 'w-4 h-4')}</button>
+      <button data-react="${esc(m.id)}" aria-label="Add reaction" class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 p-0.5 rounded hover:text-slate-100">${icon('smile', 'w-4 h-4')}</button>
       ${mine ? `<button data-delete="${esc(m.id)}" aria-label="Delete message" class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 p-0.5 rounded hover:text-rose-400">${icon('trash', 'w-4 h-4')}</button>` : ''}
     </div>
   </div>`
@@ -344,12 +344,14 @@ function openReactPop(btn, mid) {
 async function deleteMessage(mid) {
   if (!confirm('Delete this message for everyone?')) return
   const m = state.messages.find((x) => x.id === mid)
-  const mediaUrl = m?.media_url
+  if (!m || m.sender_id !== state.me.id) return toast('You can only delete your own messages.')
+  const mediaUrl = m.media_url
   const { error } = await supabase.rpc('delete_message', { p_id: mid })
   if (error) return toast('Could not delete: ' + error.message)
+  // Storage cleanup is best-effort. The database deletion remains successful if cleanup fails.
   if (mediaUrl) {
     const path = mediaUrl.split('/chat-media/')[1]
-    if (path) supabase.storage.from('chat-media').remove([decodeURIComponent(path)]) // best effort
+    if (path) supabase.storage.from('chat-media').remove([decodeURIComponent(path)])
   }
 }
 
@@ -404,5 +406,4 @@ async function startRecording() {
   let stream
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }) }
   catch { return toast('Allow microphone access to record.') }
-  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((t) => MediaRecorder.isTypeSupported(t))
-  const mr = new MediaRecorder(stream, mime ? { mim
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/
