@@ -2,49 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 1. Emerald Green */
 [data-theme="emerald"] {
   --bg-app: #F8FAF8; --bg-card: #FFFFFF; --bg-header: #FFFFFF; --bg-incoming: #F3F4F6;
   --text-incoming: #111827; --bg-user: #059669; --text-user: #FFFFFF; --border-color: #E5E7EB;
   --text-main: #111827;
 }
 
+/* 2. Violet Purple */
 [data-theme="violet"] {
   --bg-app: #0F0F1A; --bg-card: #1A1A2E; --bg-header: #161626; --bg-incoming: #232338;
   --text-incoming: #E2E8F0; --bg-user: #7C3AED; --text-user: #FFFFFF; --border-color: #2D2D44;
   --text-main: #F1F5F9;
 }
 
+/* 3. Indigo Blue */
 [data-theme="indigo"] {
   --bg-app: #0B0F17; --bg-card: #151C2C; --bg-header: #0F172A; --bg-incoming: rgba(30, 41, 59, 0.75);
   --text-incoming: #F1F5F9; --bg-user: #4F46E5; --text-user: #FFFFFF; --border-color: #1E293B;
   --text-main: #F8FAFC;
 }
 
+/* 4. Rose Pink */
 [data-theme="rose"] {
   --bg-app: #FFFDF9; --bg-card: #FFFFFF; --bg-header: #FFFFFF; --bg-incoming: #FFF1F2;
   --text-incoming: #881337; --bg-user: #E11D48; --text-user: #FFFFFF; --border-color: #FECDD3;
   --text-main: #1F2937;
 }
 
+/* 5. Amber Orange */
 [data-theme="amber"] {
   --bg-app: #000000; --bg-card: #121212; --bg-header: #181818; --bg-incoming: #1E1E1E;
   --text-incoming: #F3F4F6; --bg-user: #F59E0B; --text-user: #000000; --border-color: #27272A;
   --text-main: #FAFAFA;
 }
 
+/* Auth Login Screen Background */
+.bg-dot-pattern {
+  background-color: #0F0F1A;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  color: #FFFFFF;
+}
+
 body {
   background-color: var(--bg-app);
   color: var(--text-main);
-  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
+/* Dynamic Classes */
 .theme-card { background-color: var(--bg-card); border-color: var(--border-color); }
 .theme-header { background-color: var(--bg-header); border-bottom: 1px solid var(--border-color); }
 .msg-user { background-color: var(--bg-user); color: var(--text-user); }
 .msg-incoming { background-color: var(--bg-incoming); color: var(--text-incoming); border: 1px solid var(--border-color); }
 .theme-btn-primary { background-color: var(--bg-user); color: var(--text-user); }
 
-/* Message Delete Hover Action */
+/* Message Delete Action */
 .message-container .delete-btn { opacity: 0; transition: opacity 0.15s ease-in-out; }
 .message-container:hover .delete-btn { opacity: 1; }
 
