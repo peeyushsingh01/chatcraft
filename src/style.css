@@ -2,15 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-:root, :root[data-accent="indigo"] { --a300:165 180 252; --a400:129 140 248; --a500:99 102 241; --a600:79 70 229; --a700:67 56 202; }
-:root[data-accent="emerald"] { --a300:110 231 183; --a400:52 211 153; --a500:16 185 129; --a600:5 150 105; --a700:4 120 87; }
-:root[data-accent="violet"]  { --a300:196 181 253; --a400:167 139 250; --a500:139 92 246; --a600:124 58 237; --a700:109 40 217; }
-:root[data-accent="rose"]    { --a300:253 164 175; --a400:251 113 133; --a500:244 63 94; --a600:225 29 72; --a700:190 18 60; }
-:root[data-accent="amber"]   { --a300:252 211 77; --a400:251 191 36; --a500:245 158 11; --a600:217 119 6; --a700:180 83 9; }
+:root, :root[data-accent="indigo"] { --canvas: 15 23 42; --incoming: 30 41 59; --incoming-border: 51 65 85; --a300:165 180 252; --a400:129 140 248; --a500:99 102 241; --a600:79 70 229; --a700:67 56 202; }
+:root[data-accent="emerald"] { --canvas: 250 250 249; --incoming: 243 244 246; --incoming-border: 229 231 235; --a300:110 231 183; --a400:52 211 153; --a500:16 185 129; --a600:5 150 105; --a700:4 120 87; }
+:root[data-accent="violet"]  { --canvas: 15 15 26; --incoming: 31 31 46; --incoming-border: 55 55 75; --a300:196 181 253; --a400:167 139 250; --a500:139 92 246; --a600:124 58 237; --a700:109 40 217; }
+:root[data-accent="rose"]    { --canvas: 255 247 237; --incoming: 255 228 230; --incoming-border: 254 205 211; --a300:253 164 175; --a400:251 113 133; --a500:244 63 94; --a600:225 29 72; --a700:190 18 60; }
+:root[data-accent="amber"]   { --canvas: 0 0 0; --incoming: 28 25 23; --incoming-border: 68 64 60; --a300:252 211 77; --a400:251 191 36; --a500:245 158 11; --a600:217 119 6; --a700:180 83 9; }
 
 @layer base {
   html, body { height: 100%; }
-  body { @apply bg-slate-950 text-slate-100 font-sans antialiased; }
+  body { @apply text-slate-100 font-sans antialiased; background: rgb(var(--canvas)); }
   :focus-visible { outline: 2px solid rgb(var(--a400)); outline-offset: 2px; }
 }
 
@@ -46,3 +46,15 @@
 @media (prefers-reduced-motion: reduce) {
   .typing-dot, .animate-jumbo { animation: none; }
 }
+
+/* Theme-aware incoming message surfaces */
+.msg-bubble-incoming { background: rgb(var(--incoming)); border-color: rgb(var(--incoming-border)); }
+:root[data-accent="emerald"] body,
+:root[data-accent="rose"] body { color: #1f2937; }
+:root[data-accent="emerald"] #chat-panel,
+:root[data-accent="emerald"] #sidebar,
+:root[data-accent="rose"] #chat-panel,
+:root[data-accent="rose"] #sidebar { background-color: rgb(var(--canvas)); }
+
+:root[data-accent="emerald"] .msg-bubble-incoming,
+:root[data-accent="rose"] .msg-bubble-incoming { color: #1f2937; }
