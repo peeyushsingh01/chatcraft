@@ -1,6 +1,6 @@
 import { supabase, getProfile, uploadAvatar, updateProfile, deleteMessage } from './supabase.js';
-import './calls.js'; // Restored original architecture (side-effect import)
-import './emoji.js'; // Restored original architecture (side-effect import)
+import './calls.js';
+import './emoji.js';
 
 let currentUser = null;
 let currentProfile = null;
@@ -14,6 +14,7 @@ const THEMES = [
   { id: 'amber',   name: 'Amber Orange',   desc: 'Vibrant Dark Mobile UI',   preview: '#F59E0B' }
 ];
 
+// Instantly changes CSS variables based on your selection
 function applyTheme(themeId) {
   const validTheme = THEMES.some(t => t.id === themeId) ? themeId : 'emerald';
   document.documentElement.setAttribute('data-theme', validTheme);
@@ -21,8 +22,40 @@ function applyTheme(themeId) {
 }
 
 // ==========================================================================
-// PROFILE & THEME MODAL UI
+// GLOBAL EVENT DELEGATION (Bulletproof for SPAs & Custom Login Screens)
 // ==========================================================================
+
+document.addEventListener('click', (e) => {
+  // 1. Open Profile Modal
+  if (e.target.closest('#edit-profile-btn')) {
+    const modal = document.getElementById('profile-modal');
+    if (modal) modal.classList.remove('hidden');
+  }
+  
+  // 2. Close Profile Modal
+  if (e.target.closest('#close-profile-btn') || e.target.closest('#cancel-profile-btn')) {
+    const modal = document.getElementById('profile-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+});
+
+document.addEventListener('submit', (e) => {
+  // 3. Handle Chat Form Submit
+  if (e.target.id === 'chat-form') {
+    e.preventDefault();
+    const messageInput = document.getElementById('message-input');
+    if (messageInput?.value) {
+      handleSendMessage(messageInput.value);
+      messageInput.value = '';
+    }
+  }
+});
+
+
+// ==========================================================================
+// PROFILE MODAL RENDERING & LOGIC
+// ==========================================================================
+
 function renderProfileModal() {
   const existing = document.getElementById('profile-modal');
   if (existing) existing.remove();
@@ -92,7 +125,6 @@ function renderProfileModal() {
 }
 
 function attachProfileModalEvents() {
-  const modal = document.getElementById('profile-modal');
   let selectedFile = null;
   let selectedTheme = currentProfile?.theme || localStorage.getItem('chatcraft_theme') || 'emerald';
 
@@ -107,15 +139,11 @@ function attachProfileModalEvents() {
   document.querySelectorAll('.theme-option-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       selectedTheme = btn.dataset.themeId;
-      applyTheme(selectedTheme);
+      applyTheme(selectedTheme); // Preview theme dynamically
       document.querySelectorAll('.theme-option-btn').forEach(b => b.classList.remove('ring-2', 'ring-offset-1', 'ring-emerald-500'));
       btn.classList.add('ring-2', 'ring-offset-1', 'ring-emerald-500');
     });
   });
-
-  const closeModal = () => modal?.classList.add('hidden');
-  document.getElementById('close-profile-btn')?.addEventListener('click', closeModal);
-  document.getElementById('cancel-profile-btn')?.addEventListener('click', closeModal);
 
   document.getElementById('save-profile-btn')?.addEventListener('click', async (e) => {
     const btn = e.target;
@@ -139,8 +167,10 @@ function attachProfileModalEvents() {
       });
 
       applyTheme(selectedTheme);
-      closeModal();
-      location.reload(); 
+      document.getElementById('profile-modal')?.classList.add('hidden');
+      
+      // Update UI avatars without reloading
+      document.querySelectorAll('.msg-avatar-self').forEach(img => img.src = avatarUrl || img.src);
     } catch (err) {
       alert('Update failed: ' + err.message);
     } finally {
@@ -151,8 +181,9 @@ function attachProfileModalEvents() {
 }
 
 // ==========================================================================
-// CHAT & DELETE LOGIC
+// CHAT LOGIC
 // ==========================================================================
+
 function createMessageElement(msg) {
   const isOwner = currentUser && msg.user_id === currentUser.id;
   const container = document.createElement('div');
@@ -160,9 +191,10 @@ function createMessageElement(msg) {
   container.dataset.msgId = msg.id;
 
   const avatar = msg.avatar_url || 'https://via.placeholder.com/36?text=U';
+  const ownerAvatarClass = isOwner ? 'msg-avatar-self' : '';
 
   container.innerHTML = `
-    <img src="${avatar}" class="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-200" title="${msg.username}" />
+    <img src="${avatar}" class="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-200 ${ownerAvatarClass}" title="${msg.username}" />
     <div class="flex flex-col max-w-[70%] ${isOwner ? 'items-end' : 'items-start'}">
       <span class="text-[11px] text-gray-400 mb-1 px-1">${msg.username}</span>
       <div class="relative group">
@@ -173,9 +205,7 @@ function createMessageElement(msg) {
           <button data-delete-id="${msg.id}" 
                   class="delete-btn absolute -top-2 -left-8 bg-red-500 text-white p-1 rounded-full text-xs shadow hover:bg-red-600 transition" 
                   title="Delete message">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
           </button>
         ` : ''}
       </div>
@@ -194,7 +224,6 @@ function createMessageElement(msg) {
       }
     });
   }
-
   return container;
 }
 
@@ -222,8 +251,7 @@ async function handleSendMessage(content) {
 
 function subscribeRealtime() {
   const chatWindow = document.getElementById('chat-window');
-  supabase
-    .channel('public:messages')
+  supabase.channel('public:messages')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
       if (chatWindow) {
         chatWindow.appendChild(createMessageElement(payload.new));
@@ -236,32 +264,37 @@ function subscribeRealtime() {
     .subscribe();
 }
 
-async function init() {
-  applyTheme(localStorage.getItem('chatcraft_theme') || 'emerald');
+// ==========================================================================
+// AUTHENTICATION LISTENER
+// ==========================================================================
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    currentUser = user;
-    currentProfile = await getProfile(user.id);
-    if (currentProfile?.theme) applyTheme(currentProfile.theme);
-  }
-
-  renderProfileModal();
-  await loadMessages();
-  subscribeRealtime();
-
-  document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
-    document.getElementById('profile-modal')?.classList.remove('hidden');
-  });
-
-  const messageInput = document.getElementById('message-input');
-  document.getElementById('chat-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (messageInput?.value) {
-      handleSendMessage(messageInput.value);
-      messageInput.value = '';
+// This instantly detects when you successfully log in using your custom UI
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    currentProfile = await getProfile(currentUser.id);
+    
+    if (currentProfile?.theme) {
+      applyTheme(currentProfile.theme);
     }
-  });
+    
+    renderProfileModal();
+    loadMessages();
+  } else {
+    currentUser = null;
+    currentProfile = null;
+  }
+});
+
+// App Initialization
+function init() {
+  applyTheme(localStorage.getItem('chatcraft_theme') || 'emerald');
+  renderProfileModal(); // Mounts the empty modal to the DOM immediately
+  subscribeRealtime();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
