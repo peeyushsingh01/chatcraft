@@ -2,59 +2,142 @@
 @tailwind components;
 @tailwind utilities;
 
-:root, :root[data-accent="indigo"] { --canvas: 15 23 42; --incoming: 30 41 59; --incoming-border: 51 65 85; --a300:165 180 252; --a400:129 140 248; --a500:99 102 241; --a600:79 70 229; --a700:67 56 202; }
-:root[data-accent="emerald"] { --canvas: 250 250 249; --incoming: 243 244 246; --incoming-border: 229 231 235; --a300:110 231 183; --a400:52 211 153; --a500:16 185 129; --a600:5 150 105; --a700:4 120 87; }
-:root[data-accent="violet"]  { --canvas: 15 15 26; --incoming: 31 31 46; --incoming-border: 55 55 75; --a300:196 181 253; --a400:167 139 250; --a500:139 92 246; --a600:124 58 237; --a700:109 40 217; }
-:root[data-accent="rose"]    { --canvas: 255 247 237; --incoming: 255 228 230; --incoming-border: 254 205 211; --a300:253 164 175; --a400:251 113 133; --a500:244 63 94; --a600:225 29 72; --a700:190 18 60; }
-:root[data-accent="amber"]   { --canvas: 0 0 0; --incoming: 28 25 23; --incoming-border: 68 64 60; --a300:252 211 77; --a400:251 191 36; --a500:245 158 11; --a600:217 119 6; --a700:180 83 9; }
+/* Complete theme surfaces. Keep the existing accent selector and layout intact. */
 
-@layer base {
-  html, body { height: 100%; }
-  body { @apply text-slate-100 font-sans antialiased; background: rgb(var(--canvas)); }
-  :focus-visible { outline: 2px solid rgb(var(--a400)); outline-offset: 2px; }
+:root,
+:root[data-accent="indigo"] {
+  --theme-canvas: 15 23 42;
+  --theme-panel: 2 6 23;
+  --theme-surface: 15 23 42;
+  --theme-border: 51 65 85;
+  --theme-text: 241 245 249;
+  --theme-muted: 148 163 184;
 }
 
-@layer components {
-  .btn-icon { @apply p-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors disabled:opacity-40; }
-  .field { @apply w-full rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:border-accent-500; }
-  .btn-primary { @apply rounded-xl bg-accent-600 hover:bg-accent-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors disabled:opacity-60; }
-  .btn-ghost { @apply rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-4 py-2.5 text-sm transition-colors; }
-  .chat-row { @apply w-full p-3 rounded-xl flex items-center gap-3 text-left border border-transparent hover:bg-slate-800/60 transition-colors; }
-  .chat-row.active { @apply bg-accent-600/10 border-accent-500/30; }
-  .rx { @apply text-xs px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-200 hover:border-accent-500; }
-  .rx.mine { @apply border-accent-500 bg-accent-600/20; }
-  .call-btn { @apply w-14 h-14 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 text-white transition-colors; }
+:root[data-accent="emerald"] {
+  --theme-canvas: 250 250 249;
+  --theme-panel: 255 255 255;
+  --theme-surface: 243 244 246;
+  --theme-border: 229 231 235;
+  --theme-text: 31 41 55;
+  --theme-muted: 107 114 128;
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: rgba(148,163,184,.3); border-radius: 9999px; }
-
-@keyframes typingBounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
-.typing-dot { animation: typingBounce 1.4s infinite ease-in-out both; }
-.typing-dot:nth-child(1) { animation-delay: -0.32s; }
-.typing-dot:nth-child(2) { animation-delay: -0.16s; }
-
-@keyframes jumboPop { 0% { transform: scale(.7); opacity: 0; } 50% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
-.animate-jumbo { animation: jumboPop .35s cubic-bezier(.175,.885,.32,1.275) both; }
-
-/* Real responsive behaviour: on phones show either the list or the chat. */
-@media (max-width: 767px) {
-  body[data-view="chat"] #sidebar { display: none; }
-  body:not([data-view="chat"]) #chat { display: none; }
+:root[data-accent="violet"] {
+  --theme-canvas: 15 15 26;
+  --theme-panel: 17 17 31;
+  --theme-surface: 31 31 46;
+  --theme-border: 55 55 75;
+  --theme-text: 241 245 249;
+  --theme-muted: 161 161 179;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .typing-dot, .animate-jumbo { animation: none; }
+:root[data-accent="rose"] {
+  --theme-canvas: 255 247 237;
+  --theme-panel: 255 251 250;
+  --theme-surface: 255 228 230;
+  --theme-border: 254 205 211;
+  --theme-text: 63 35 42;
+  --theme-muted: 136 89 99;
 }
 
-/* Theme-aware incoming message surfaces */
-.msg-bubble-incoming { background: rgb(var(--incoming)); border-color: rgb(var(--incoming-border)); }
-:root[data-accent="emerald"] body,
-:root[data-accent="rose"] body { color: #1f2937; }
-:root[data-accent="emerald"] #chat-panel,
-:root[data-accent="emerald"] #sidebar,
-:root[data-accent="rose"] #chat-panel,
-:root[data-accent="rose"] #sidebar { background-color: rgb(var(--canvas)); }
+:root[data-accent="amber"] {
+  --theme-canvas: 0 0 0;
+  --theme-panel: 12 10 9;
+  --theme-surface: 28 25 23;
+  --theme-border: 68 64 60;
+  --theme-text: 250 250 249;
+  --theme-muted: 168 162 158;
+}
 
-:root[data-accent="emerald"] .msg-bubble-incoming,
-:root[data-accent="rose"] .msg-bubble-incoming { color: #1f2937; }
+/* Main backgrounds and text */
+
+:root[data-accent] body,
+:root[data-accent] #chat {
+  background-color: rgb(var(--theme-canvas));
+  color: rgb(var(--theme-text));
+}
+
+:root[data-accent] #sidebar,
+:root[data-accent] #chat-panel,
+:root[data-accent] #empty {
+  background-color: rgb(var(--theme-canvas));
+  color: rgb(var(--theme-text));
+}
+
+/* Headers and composer surfaces */
+
+:root[data-accent] #sidebar > div:first-child,
+:root[data-accent] #chat-panel > header,
+:root[data-accent] #composer-row,
+:root[data-accent] #chat-panel > .relative {
+  border-color: rgb(var(--theme-border));
+}
+
+:root[data-accent] #sidebar > div:first-child,
+:root[data-accent] #chat-panel > header,
+:root[data-accent] #chat-panel > .relative {
+  background-color: rgb(var(--theme-panel));
+}
+
+/* Input fields */
+
+:root[data-accent] .field {
+  background-color: rgb(var(--theme-panel));
+  border-color: rgb(var(--theme-border));
+  color: rgb(var(--theme-text));
+}
+
+:root[data-accent] .field::placeholder {
+  color: rgb(var(--theme-muted));
+}
+
+/* Incoming message bubbles */
+
+:root[data-accent] .msg-bubble-incoming {
+  background-color: rgb(var(--incoming));
+  border-color: rgb(var(--incoming-border));
+  color: rgb(var(--theme-text));
+}
+
+/* Text colours */
+
+:root[data-accent] .text-slate-100 {
+  color: rgb(var(--theme-text));
+}
+
+:root[data-accent] .text-slate-300,
+:root[data-accent] .text-slate-400 {
+  color: rgb(var(--theme-muted));
+}
+
+/* Borders */
+
+:root[data-accent] .border-slate-800,
+:root[data-accent] .border-slate-700 {
+  border-color: rgb(var(--theme-border));
+}
+
+/* Background utility overrides */
+
+:root[data-accent] .bg-slate-950,
+:root[data-accent] .bg-slate-950\/50,
+:root[data-accent] .bg-slate-950\/90 {
+  background-color: rgb(var(--theme-panel));
+}
+
+:root[data-accent] .bg-slate-900 {
+  background-color: rgb(var(--theme-canvas));
+}
+
+:root[data-accent] .bg-slate-800 {
+  background-color: rgb(var(--theme-surface));
+}
+
+/* Hover states */
+
+:root[data-accent] .hover\:bg-slate-800:hover,
+:root[data-accent] .hover\:bg-slate-800\/60:hover,
+:root[data-accent] .hover\:bg-slate-700:hover {
+  background-color: rgb(var(--theme-surface));
+}
