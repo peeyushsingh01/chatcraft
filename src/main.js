@@ -258,7 +258,7 @@ function msgHtml(m, c, fresh) {
   else inner = `<p class="whitespace-pre-wrap break-words leading-relaxed">${esc(m.body)}</p>`
   const bubble = jumbo
     ? `<div class="text-5xl py-1 select-none${fresh ? ' animate-jumbo' : ''}">${esc(m.body)}</div>`
-    : `<div class="max-w-[85%] md:max-w-[65%] rounded-2xl px-3.5 py-2.5 text-sm shadow-md ${mine ? 'bg-accent-600 text-white rounded-br-md' : 'bg-slate-800 text-slate-100 border border-slate-700/60 rounded-bl-md'}">${inner}</div>`
+    : `<div class="max-w-[85%] md:max-w-[65%] rounded-2xl px-3.5 py-2.5 text-sm shadow-md ${mine ? 'bg-accent-600 text-white rounded-br-md' : 'msg-bubble-incoming text-slate-100 border rounded-bl-md'}">${inner}</div>`
   return `<div class="msg group flex flex-col ${mine ? 'items-end' : 'items-start'}" data-id="${esc(m.id)}">
     ${c.is_group && !mine ? `<span class="text-xs font-medium text-accent-300 mb-1 px-1">${esc(who)}</span>` : ''}
     ${bubble}
@@ -266,6 +266,7 @@ function msgHtml(m, c, fresh) {
       <span>${fmtTime(m.created_at)}</span>
       ${mine ? `<span class="tick" data-ts="${esc(m.created_at)}">${tickHtml(m.created_at, c)}</span>` : ''}
       <span class="reactions flex gap-1">${reactionsHtml(m.id)}</span>
+      ${mine ? `<button data-delete-msg="${esc(m.id)}" aria-label="Delete message" title="Delete message" class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 p-0.5 rounded hover:text-rose-400">${icon('x', 'w-4 h-4')}</button>` : ''}
       <button data-react="${esc(m.id)}" aria-label="Add reaction" class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 p-0.5 rounded hover:text-white">${icon('smile', 'w-4 h-4')}</button>
     </div>
   </div>`
@@ -291,11 +292,32 @@ function appendMessage(m) {
 }
 
 $('#messages').addEventListener('click', async (e) => {
+  const del = e.target.closest('[data-delete-msg]')
+  if (del) {
+    const mid = del.dataset.deleteMsg
+    const msg = state.messages.find((m) => m.id === mid)
+    if (!msg || msg.sender_id !== state.me.id) return
+    if (!confirm('Delete this message for everyone?')) return
+    del.disabled = true
+    const { error } = await supabase.from('messages').delete().eq('id', mid).eq('sender_id', state.me.id)
+    if (error) { del.disabled = false; return toast('Could not delete message: ' + error.message) }
+    removeMessage(mid)
+    return
+  }
   if (e.target.closest('#load-older')) {
     await fetchMessages(state.activeId, state.messages[0]?.created_at)
     renderMessages(true)
   }
 })
+
+function removeMessage(mid) {
+  const msg = state.messages.find((m) => m.id === mid)
+  state.messages = state.messages.filter((m) => m.id !== mid)
+  state.reactions.delete(mid)
+  const c = msg && state.convs.get(msg.conversation_id)
+  if (c && c.last?.created_at === msg.created_at) loadConversations()
+  if (msg?.conversation_id === state.activeId) renderMessages()
+}
 
 /* ───────────── reactions ───────────── */
 function addReaction(r) {
@@ -389,250 +411,4 @@ async function startRecording() {
   rec = { mr, stream, send: false, started: Date.now(), cid: state.activeId }
   mr.ondataavailable = (e) => e.data.size && chunks.push(e.data)
   mr.onstop = async () => {
-    stream.getTracks().forEach((t) => t.stop())
-    const { send, cid } = rec; rec = null
-    clearInterval(recTimer); setRecUi(false)
-    if (!send || !chunks.length || cid !== state.activeId) return
-    const type = (mr.mimeType || mime || 'audio/webm').split(';')[0]
-    const ext = type.includes('mp4') ? 'mp4' : type.includes('ogg') ? 'ogg' : 'webm'
-    try { await sendMedia(new Blob(chunks, { type }), 'audio', ext, type) }
-    catch (err) { toast('Voice message not sent: ' + err.message) }
-  }
-  mr.start()
-  setRecUi(true)
-  recTimer = setInterval(() => {
-    const s = Math.floor((Date.now() - rec.started) / 1000)
-    $('#rec-time').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-    if (s >= 180) stopRecording(true)
-  }, 250)
-}
-function stopRecording(send) { if (rec) { rec.send = send; rec.mr.stop() } }
-function setRecUi(on) {
-  $('#composer-row').classList.toggle('hidden', on)
-  const bar = $('#rec-bar'); bar.classList.toggle('hidden', !on); bar.classList.toggle('flex', on)
-  $('#rec-time').textContent = '0:00'
-}
-$('#btn-mic').addEventListener('click', startRecording)
-$('#rec-cancel').addEventListener('click', () => stopRecording(false))
-$('#rec-send').addEventListener('click', () => stopRecording(true))
-
-/* ───────────── emoji picker ───────────── */
-let emojiCat = 'smileys'
-function renderEmoji() {
-  const q = $('#emoji-search').value.trim().toLowerCase()
-  const all = Object.values(EMOJI).flatMap((c) => c.items)
-  const items = q ? all.filter(([, k]) => k.includes(q)) : EMOJI[emojiCat].items
-  $('#emoji-tabs').innerHTML = Object.entries(EMOJI).map(([k, v]) =>
-    `<button data-emoji-cat="${k}" class="px-2 py-1 rounded text-base ${k === emojiCat && !q ? 'bg-accent-600/20' : 'hover:bg-slate-800'}" aria-label="${k}">${v.label}</button>`).join('')
-  $('#emoji-grid').innerHTML = items.length
-    ? items.map(([e, k]) => `<button data-emoji="${e}" title="${esc(k.split(' ')[0])}" class="p-1 rounded hover:bg-slate-800 hover:scale-125 transition-transform">${e}</button>`).join('')
-    : '<p class="col-span-7 text-sm text-slate-400 p-2">No emoji found.</p>'
-}
-function insertEmoji(ch) {
-  const t = $('#composer-input'), s = t.selectionStart ?? t.value.length
-  t.setRangeText(ch, s, t.selectionEnd ?? s, 'end'); t.focus(); autosize()
-}
-$('#btn-emoji').addEventListener('click', (e) => {
-  e.stopPropagation()
-  const pop = $('#emoji-pop'); pop.classList.toggle('hidden')
-  if (!pop.classList.contains('hidden')) { renderEmoji(); $('#emoji-search').focus() }
-})
-$('#emoji-search').addEventListener('input', renderEmoji)
-$('#emoji-pop').addEventListener('click', (e) => {
-  const cat = e.target.closest('[data-emoji-cat]'); if (cat) { emojiCat = cat.dataset.emojiCat; $('#emoji-search').value = ''; return renderEmoji() }
-  const em = e.target.closest('[data-emoji]'); if (em) insertEmoji(em.dataset.emoji)
-})
-
-/* ───────────── realtime ───────────── */
-let typingChan = null, lastTypingSent = 0, typingHide = null
-
-function onNewMessage(m) {
-  const c = state.convs.get(m.conversation_id)
-  if (!c) return loadConversations()
-  c.last = { body: m.body, kind: m.kind, created_at: m.created_at, sender_id: m.sender_id }
-  const mine = m.sender_id === state.me.id
-  if (m.conversation_id === state.activeId) {
-    const had = state.messages.some((x) => x.id === m.id)
-    appendMessage(m)
-    if (!mine && !had) {
-      beep('receive')
-      if (document.hidden) c.unread++; else markRead()
-    }
-  } else if (!mine) { c.unread++; beep('receive') }
-  renderSidebar()
-}
-
-function onMemberUpdate(row) {
-  const c = state.convs.get(row.conversation_id); if (!c) return
-  const m = c.members.find((x) => x.user_id === row.user_id); if (m) m.last_read_at = row.last_read_at
-  if (row.conversation_id === state.activeId && row.user_id !== state.me.id) {
-    $$('#messages .tick').forEach((el) => { el.innerHTML = tickHtml(el.dataset.ts, c) })
-  }
-}
-
-function onReactionRow(r, added) {
-  if (!state.messages.some((m) => m.id === r.message_id)) return
-  if (added) addReaction(r); else removeReaction(r)
-  refreshReactions(r.message_id)
-}
-
-function subscribeRealtime() {
-  const me = state.me.id
-  supabase.channel('db-changes')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => onNewMessage(p.new))
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reactions' }, (p) => onReactionRow(p.new, true))
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'reactions' }, (p) => onReactionRow(p.old, false))
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_members', filter: `user_id=eq.${me}` }, () => loadConversations())
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_members' }, (p) => onMemberUpdate(p.new))
-    .subscribe()
-
-  const pres = supabase.channel('online', { config: { presence: { key: me } } })
-  pres.on('presence', { event: 'sync' }, () => {
-    state.online = new Set(Object.keys(pres.presenceState()))
-    renderSidebar(); renderHeader()
-  }).subscribe(async (st) => { if (st === 'SUBSCRIBED') await pres.track({ at: Date.now() }) })
-}
-
-function subscribeTyping(id) {
-  if (typingChan) supabase.removeChannel(typingChan)
-  typingChan = supabase.channel(`typing:${id}`)
-    .on('broadcast', { event: 'typing' }, ({ payload }) => { if (payload.user !== state.me.id) showTyping(payload.name) })
-    .subscribe()
-}
-function sendTyping() {
-  if (!typingChan || Date.now() - lastTypingSent < 2000) return
-  lastTypingSent = Date.now()
-  typingChan.send({ type: 'broadcast', event: 'typing', payload: { user: state.me.id, name: nameOf(state.me) } })
-}
-function showTyping(name) {
-  $('#typing').innerHTML = `<span class="inline-flex items-center gap-1.5"><span class="inline-flex gap-1" aria-hidden="true"><span class="w-1.5 h-1.5 bg-slate-400 rounded-full typing-dot"></span><span class="w-1.5 h-1.5 bg-slate-400 rounded-full typing-dot"></span><span class="w-1.5 h-1.5 bg-slate-400 rounded-full typing-dot"></span></span>${esc(name)} is typing</span>`
-  clearTimeout(typingHide); typingHide = setTimeout(() => { $('#typing').innerHTML = '' }, 3000)
-}
-
-async function markRead() {
-  const c = activeConv(); if (!c) return
-  c.unread = 0; renderSidebar()
-  await supabase.rpc('mark_read', { p_conversation: c.id })
-}
-document.addEventListener('visibilitychange', () => { if (!document.hidden && activeConv()?.unread) markRead() })
-
-/* ───────────── new chat / group ───────────── */
-const nc = { group: false, picked: new Map(), results: [], timer: null }
-function openNew() {
-  nc.group = false; nc.picked.clear()
-  $('#new-group').checked = false; $('#new-search').value = ''; $('#new-groupname').value = ''
-  syncNew(); const m = $('#new-modal'); m.classList.remove('hidden'); m.classList.add('flex')
-  $('#new-search').focus(); searchUsers('')
-}
-function closeNew() { const m = $('#new-modal'); m.classList.add('hidden'); m.classList.remove('flex') }
-function syncNew() {
-  $('#new-groupname').classList.toggle('hidden', !nc.group)
-  $('#new-create').classList.toggle('hidden', !nc.group)
-  $('#new-chips').innerHTML = [...nc.picked].map(([id, p]) =>
-    `<button data-chip="${esc(id)}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-accent-600/20 border border-accent-500/40 text-xs" aria-label="Remove ${esc(nameOf(p))}">${esc(nameOf(p))} ${icon('x', 'w-3 h-3')}</button>`).join('')
-  $('#new-results').innerHTML = nc.results.length
-    ? nc.results.map((p) => `<button data-user="${esc(p.id)}" class="chat-row${nc.picked.has(p.id) ? ' active' : ''}">${avatar(nameOf(p), 'w-9 h-9')}<span class="text-sm font-medium">${esc(nameOf(p))}</span><span class="text-xs text-slate-400">@${esc(p.username)}</span></button>`).join('')
-    : '<p class="text-sm text-slate-400 p-2">No people found.</p>'
-}
-async function searchUsers(q) {
-  const clean = q.replace(/[^a-z0-9_]/gi, '')
-  const { data, error } = await supabase.from('profiles').select('id,username,display_name').neq('id', state.me.id).ilike('username', `%${clean}%`).order('username').limit(20)
-  if (error) return toast(error.message)
-  nc.results = data || []; syncNew()
-}
-$('#btn-new').addEventListener('click', openNew)
-$('#new-close').addEventListener('click', closeNew)
-$('#new-group').addEventListener('change', (e) => { nc.group = e.target.checked; nc.picked.clear(); syncNew() })
-$('#new-search').addEventListener('input', (e) => { clearTimeout(nc.timer); nc.timer = setTimeout(() => searchUsers(e.target.value), 250) })
-$('#new-chips').addEventListener('click', (e) => { const b = e.target.closest('[data-chip]'); if (b) { nc.picked.delete(b.dataset.chip); syncNew() } })
-$('#new-results').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-user]'); if (!b) return
-  const p = nc.results.find((x) => x.id === b.dataset.user)
-  if (nc.group) { nc.picked.has(p.id) ? nc.picked.delete(p.id) : nc.picked.set(p.id, p); return syncNew() }
-  const { data, error } = await supabase.rpc('get_or_create_dm', { p_other: p.id })
-  if (error) return toast(error.message)
-  closeNew(); await loadConversations(); openConv(data)
-})
-$('#new-create').addEventListener('click', async () => {
-  const name = $('#new-groupname').value.trim()
-  if (!name) return toast('Give the group a name.')
-  if (!nc.picked.size) return toast('Pick at least one person.')
-  const { data, error } = await supabase.rpc('create_group', { p_name: name, p_members: [...nc.picked.keys()] })
-  if (error) return toast(error.message)
-  closeNew(); await loadConversations(); openConv(data)
-})
-
-/* ───────────── calls UI ───────────── */
-let callTick = null
-function renderCall(s) {
-  const el = $('#call'), rv = $('#remote-video'), lv = $('#local-video')
-  const active = s.phase !== 'idle'
-  el.classList.toggle('hidden', !active); el.classList.toggle('flex', active)
-  clearInterval(callTick)
-  if (!active) { rv.srcObject = null; lv.srcObject = null; return }
-  const name = s.peer?.name || 'Someone'
-  $('#call-avatar').innerHTML = avatar(name, 'w-24 h-24 !text-3xl')
-  $('#call-name').textContent = name
-  if (rv.srcObject !== s.remote) rv.srcObject = s.remote
-  if (lv.srcObject !== s.local) lv.srcObject = s.local
-  const showRemoteVideo = s.video && s.phase === 'connected'
-  rv.classList.toggle('hidden', !showRemoteVideo)
-  lv.classList.toggle('hidden', !(s.video && s.local))
-  $('#call-info').classList.toggle('hidden', showRemoteVideo)
-  const status = $('#call-status')
-  const label = { calling: 'Calling…', connecting: 'Connecting…', incoming: `Incoming ${s.video ? 'video' : 'voice'} call` }[s.phase]
-  if (s.phase === 'connected') {
-    const tick = () => { const t = Math.floor((Date.now() - s.startedAt) / 1000); status.textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` }
-    tick(); callTick = setInterval(tick, 1000)
-  } else status.textContent = label
-  const b = (id, cls, ic, lab) => `<button id="${id}" class="call-btn ${cls}" aria-label="${lab}">${icon(ic, 'w-6 h-6')}</button>`
-  $('#call-controls').innerHTML = s.phase === 'incoming'
-    ? b('call-decline', '!bg-rose-600 hover:!bg-rose-500', 'x', 'Decline call') + b('call-accept', '!bg-emerald-600 hover:!bg-emerald-500', s.video ? 'video' : 'phone', 'Accept call')
-    : b('call-mute', s.muted ? '!bg-white !text-slate-900' : '', s.muted ? 'mic-off' : 'mic', s.muted ? 'Unmute' : 'Mute')
-      + (s.video ? b('call-cam', s.camOff ? '!bg-white !text-slate-900' : '', s.camOff ? 'video-off' : 'video', s.camOff ? 'Turn camera on' : 'Turn camera off') : '')
-      + b('call-hangup', '!bg-rose-600 hover:!bg-rose-500', 'phone', 'End call').replace('<svg class="', '<svg class="rotate-[135deg] ')
-}
-$('#call-controls').addEventListener('click', (e) => {
-  const id = e.target.closest('button')?.id
-  if (id === 'call-accept') calls.accept()
-  else if (id === 'call-decline') calls.decline()
-  else if (id === 'call-hangup') calls.hangup()
-  else if (id === 'call-mute') calls.toggleMute()
-  else if (id === 'call-cam') calls.toggleCam()
-})
-const startCall = (video) => {
-  const c = activeConv(), p = c && !c.is_group && peerOf(c)
-  if (p) calls.start({ id: p.user_id, name: nameOf(p.profile) }, video)
-}
-$('#btn-voice').addEventListener('click', () => startCall(false))
-$('#btn-video').addEventListener('click', () => startCall(true))
-
-/* ───────────── global UI wiring ───────────── */
-function setAccent(name) { document.documentElement.dataset.accent = name; localStorage.setItem('cc-accent', name) }
-$('#btn-accent').addEventListener('click', (e) => { e.stopPropagation(); $('#accent-pop').classList.toggle('hidden') })
-$('#accent-pop').addEventListener('click', (e) => { const b = e.target.closest('[data-accent]'); if (b) { setAccent(b.dataset.accent); $('#accent-pop').classList.add('hidden') } })
-$('#btn-sound').addEventListener('click', () => { setSound(!sound.on); paintSound() })
-
-function openLightbox(src) { $('#lightbox-img').src = src; const l = $('#lightbox'); l.classList.remove('hidden'); l.classList.add('flex') }
-function closeLightbox() { const l = $('#lightbox'); l.classList.add('hidden'); l.classList.remove('flex') }
-$('#lightbox').addEventListener('click', (e) => { if (e.target.id !== 'lightbox-img') closeLightbox() })
-
-document.addEventListener('click', (e) => {
-  const t = e.target
-  const react = t.closest('[data-react]'); if (react) { e.stopPropagation(); return openReactPop(react, react.dataset.react) }
-  const toggle = t.closest('[data-toggle-react]'); if (toggle) return toggleReaction(toggle.dataset.toggleReact, toggle.dataset.emoji)
-  const pick = t.closest('[data-pick-react]'); if (pick) { toggleReaction(reactTarget, pick.dataset.pickReact); $('#react-pop').classList.add('hidden'); return }
-  const lb = t.closest('[data-lightbox]'); if (lb) return openLightbox(lb.dataset.lightbox)
-  if (!t.closest('#react-pop')) $('#react-pop').classList.add('hidden')
-  if (!t.closest('#emoji-pop') && !t.closest('#btn-emoji')) $('#emoji-pop').classList.add('hidden')
-  if (!t.closest('#accent-pop') && !t.closest('#btn-accent')) $('#accent-pop').classList.add('hidden')
-})
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return
-  closeLightbox(); closeNew()
-  $('#react-pop').classList.add('hidden'); $('#emoji-pop').classList.add('hidden'); $('#accent-pop').classList.add('hidden')
-})
-
-paintIcons()
-setMode('signin')
-boot()
+    stream.getTracks
