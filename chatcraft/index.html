@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" data-accent="indigo" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#020617" />
+  <title>ChatCraft</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💬</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- SETUP ERROR -->
+  <div id="setup" class="hidden min-h-dvh flex items-center justify-center p-6">
+    <div class="max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <h1 class="text-lg font-bold mb-2">Backend not configured</h1>
+      <p class="text-sm text-slate-300">Set <code class="text-accent-300">VITE_SUPABASE_URL</code> and <code class="text-accent-300">VITE_SUPABASE_ANON_KEY</code> (see <code>.env.example</code>), then rebuild or redeploy.</p>
+    </div>
+  </div>
+
+  <!-- AUTH -->
+  <div id="auth" class="hidden min-h-dvh flex items-center justify-center p-4 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]">
+    <form id="auth-form" class="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl space-y-4" novalidate>
+      <div class="flex items-center gap-3">
+        <div class="h-11 w-11 rounded-xl bg-gradient-to-tr from-accent-700 via-accent-500 to-emerald-500 flex items-center justify-center text-xl" aria-hidden="true">💬</div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight">ChatCraft</h1>
+          <p id="auth-sub" class="text-sm text-slate-400">Sign in to continue</p>
+        </div>
+      </div>
+      <div id="auth-username-wrap" class="hidden">
+        <label for="auth-username" class="block text-sm text-slate-300 mb-1">Username</label>
+        <input id="auth-username" class="field" autocomplete="username" maxlength="20" placeholder="letters, numbers, underscore" />
+      </div>
+      <div>
+        <label for="auth-email" class="block text-sm text-slate-300 mb-1">Email</label>
+        <input id="auth-email" type="email" class="field" autocomplete="email" required />
+      </div>
+      <div>
+        <label for="auth-password" class="block text-sm text-slate-300 mb-1">Password</label>
+        <input id="auth-password" type="password" class="field" autocomplete="current-password" minlength="6" required />
+      </div>
+      <p id="auth-msg" role="alert" class="hidden text-sm"></p>
+      <button id="auth-submit" class="btn-primary w-full">Sign in</button>
+      <button id="auth-toggle" type="button" class="w-full text-sm text-slate-400 hover:text-white">New here? Create an account</button>
+    </form>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="hidden h-dvh flex overflow-hidden">
+    <aside id="sidebar" class="w-full md:w-80 shrink-0 border-r border-slate-800 bg-slate-950 flex flex-col">
+      <div class="p-3 border-b border-slate-800 flex items-center gap-2">
+        <div id="me-avatar"></div>
+        <div class="min-w-0 flex-1">
+          <p id="me-name" class="font-semibold text-sm truncate"></p>
+          <p class="text-xs text-slate-400">Signed in</p>
+        </div>
+        <div class="relative">
+          <button id="btn-accent" class="btn-icon" aria-label="Change accent colour" aria-haspopup="true"></button>
+          <div id="accent-pop" class="hidden absolute right-0 top-full mt-1 z-40 flex gap-2 rounded-xl border border-slate-700 bg-slate-900 p-2.5 shadow-xl">
+            <button data-accent="indigo" aria-label="Indigo" class="w-5 h-5 rounded-full bg-indigo-500 ring-1 ring-white/20"></button>
+            <button data-accent="emerald" aria-label="Emerald" class="w-5 h-5 rounded-full bg-emerald-500 ring-1 ring-white/20"></button>
+            <button data-accent="violet" aria-label="Violet" class="w-5 h-5 rounded-full bg-violet-500 ring-1 ring-white/20"></button>
+            <button data-accent="rose" aria-label="Rose" class="w-5 h-5 rounded-full bg-rose-500 ring-1 ring-white/20"></button>
+            <button data-accent="amber" aria-label="Amber" class="w-5 h-5 rounded-full bg-amber-500 ring-1 ring-white/20"></button>
+          </div>
+        </div>
+        <button id="btn-sound" class="btn-icon" aria-label="Toggle sounds"></button>
+        <button id="btn-new" class="btn-icon" aria-label="New chat"></button>
+        <button id="btn-logout" class="btn-icon" aria-label="Sign out"></button>
+      </div>
+      <div class="p-3">
+        <label for="search" class="sr-only">Search chats</label>
+        <div class="relative">
+          <span id="search-icon" class="absolute left-3 top-2.5 text-slate-400"></span>
+          <input id="search" class="field pl-9 !py-2" placeholder="Search chats" autocomplete="off" />
+        </div>
+      </div>
+      <div id="chat-list" class="flex-1 overflow-y-auto px-2 pb-2 space-y-1"></div>
+    </aside>
+
+    <section id="chat" class="flex-1 min-w-0 flex flex-col bg-slate-900">
+      <div id="empty" class="flex-1 flex flex-col items-center justify-center text-center p-6">
+        <div class="text-5xl mb-3" aria-hidden="true">💬</div>
+        <h2 class="font-bold text-lg">Pick a chat to start talking</h2>
+        <p class="text-sm text-slate-400 mt-1 max-w-xs">Messages, photos, voice notes and calls all live here.</p>
+      </div>
+
+      <div id="chat-panel" class="hidden flex-1 min-h-0 flex-col">
+        <header class="p-3 border-b border-slate-800 bg-slate-950/50 flex items-center gap-3">
+          <button id="btn-back" class="btn-icon md:hidden" aria-label="Back to chats"></button>
+          <div id="hdr-avatar"></div>
+          <div class="min-w-0 flex-1">
+            <h2 id="hdr-title" class="font-semibold text-sm truncate"></h2>
+            <p id="hdr-status" class="text-xs text-slate-400 truncate"></p>
+          </div>
+          <div id="hdr-calls" class="flex gap-1">
+            <button id="btn-voice" class="btn-icon" aria-label="Voice call"></button>
+            <button id="btn-video" class="btn-icon" aria-label="Video call"></button>
+          </div>
+        </header>
+
+        <div id="messages" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3" role="log" aria-live="polite" aria-label="Messages"></div>
+        <div id="typing" class="px-4 pb-1 h-6 text-xs text-slate-400" aria-live="polite"></div>
+
+        <div class="relative border-t border-slate-800 bg-slate-950/90 p-3">
+          <div id="emoji-pop" class="hidden absolute bottom-full left-3 mb-2 w-72 rounded-2xl border border-slate-700 bg-slate-900 p-3 shadow-2xl z-30">
+            <label for="emoji-search" class="sr-only">Search emoji</label>
+            <input id="emoji-search" class="field !py-1.5 mb-2" placeholder="Search emoji (e.g. fire, love)" autocomplete="off" />
+            <div id="emoji-tabs" class="flex justify-between border-b border-slate-800 pb-2 mb-2"></div>
+            <div id="emoji-grid" class="grid grid-cols-7 gap-1 max-h-48 overflow-y-auto text-xl"></div>
+          </div>
+
+          <div id="composer-row" class="flex items-end gap-1.5">
+            <button id="btn-emoji" class="btn-icon" aria-label="Emoji picker"></button>
+            <button id="btn-attach" class="btn-icon" aria-label="Send a photo"></button>
+            <input id="file-input" type="file" accept="image/*" class="hidden" />
+            <label for="composer-input" class="sr-only">Message</label>
+            <textarea id="composer-input" rows="1" maxlength="4000" placeholder="Type a message" class="field !rounded-2xl resize-none max-h-32 leading-snug"></textarea>
+            <button id="btn-mic" class="btn-icon" aria-label="Record a voice message"></button>
+            <button id="btn-send" class="p-2.5 rounded-full bg-accent-600 hover:bg-accent-500 text-white transition-colors" aria-label="Send message"></button>
+          </div>
+
+          <div id="rec-bar" class="hidden items-center gap-3">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" aria-hidden="true"></span>
+            <span id="rec-time" class="text-sm tabular-nums flex-1">0:00</span>
+            <button id="rec-cancel" class="btn-ghost">Cancel</button>
+            <button id="rec-send" class="btn-primary">Send voice message</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- POPOVER: message reactions -->
+  <div id="react-pop" class="hidden fixed z-50 flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1.5 shadow-2xl"></div>
+
+  <!-- MODAL: new chat -->
+  <div id="new-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="new-title">
+    <div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-2xl flex flex-col max-h-[85dvh]">
+      <div class="flex items-center justify-between mb-3">
+        <h3 id="new-title" class="font-bold">New chat</h3>
+        <button id="new-close" class="btn-icon" aria-label="Close"></button>
+      </div>
+      <label class="flex items-center gap-2 text-sm text-slate-300 mb-3">
+        <input id="new-group" type="checkbox" class="accent-[rgb(var(--a500))]" /> Create a group
+      </label>
+      <input id="new-groupname" class="field mb-3 hidden" placeholder="Group name" maxlength="60" />
+      <label for="new-search" class="sr-only">Find people</label>
+      <input id="new-search" class="field mb-3" placeholder="Find people by username" autocomplete="off" />
+      <div id="new-chips" class="flex flex-wrap gap-1.5 mb-2"></div>
+      <div id="new-results" class="flex-1 overflow-y-auto space-y-1 min-h-[8rem]"></div>
+      <button id="new-create" class="btn-primary mt-3 hidden">Create group</button>
+    </div>
+  </div>
+
+  <!-- LIGHTBOX -->
+  <div id="lightbox" class="hidden fixed inset-0 z-50 bg-black/90 items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Photo viewer">
+    <button id="lightbox-close" class="absolute top-4 right-4 btn-icon text-white" aria-label="Close photo"></button>
+    <img id="lightbox-img" alt="" class="max-h-full max-w-full rounded-lg" />
+  </div>
+
+  <!-- CALL OVERLAY -->
+  <div id="call" class="hidden fixed inset-0 z-[60] bg-slate-950 flex-col" role="dialog" aria-modal="true" aria-label="Call">
+    <video id="remote-video" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
+    <div id="call-info" class="relative z-10 flex flex-col items-center pt-16 gap-3 text-center">
+      <div id="call-avatar"></div>
+      <h2 id="call-name" class="text-xl font-bold"></h2>
+      <p id="call-status" class="text-sm text-slate-300" aria-live="polite"></p>
+    </div>
+    <video id="local-video" autoplay playsinline muted class="hidden absolute z-10 top-4 right-4 w-28 md:w-40 rounded-xl border border-white/20 bg-black object-cover"></video>
+    <div id="call-controls" class="relative z-10 mt-auto mb-10 flex items-center justify-center gap-4"></div>
+  </div>
+
+  <div id="toasts" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] flex flex-col gap-2 items-center" role="status"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
